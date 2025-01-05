@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..e24572375775622c9e00f11f200bafb4bc38c4b4
 --- /dev/null
 +++ forkDstPrefix/video/out/vulkan/context_moltenvk.m
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,137 @@
 +/*
 + * This file is part of mpv.
 + *
@@ -57,7 +57,7 @@ index 0000000000000000000000000000000000000000..e24572375775622c9e00f11f200bafb4
 +}
 +
 +- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-+    if ([keyPath isEqualToString:@"drawableSize"]) {
++    if ([keyPath isEqualToString:@"drawableSize"] && self.ctx != NULL) {
 +        CGSize newDrawableSize = self.layer.drawableSize;
 +        ra_vk_ctx_resize(self.ctx, newDrawableSize.width, newDrawableSize.height);
 +		 MP_MSG(self.ctx, MSGL_DEBUG, "Updated drawable size\n");
@@ -75,7 +75,6 @@ index 0000000000000000000000000000000000000000..e24572375775622c9e00f11f200bafb4
 +static void moltenvk_uninit(struct ra_ctx *ctx)
 +{
 +    struct priv *p = ctx->priv;
-+	 [p->kvo release];
 +    ra_vk_ctx_uninit(ctx);
 +    mpvk_uninit(&p->vk);
 +}
@@ -100,7 +99,7 @@ index 0000000000000000000000000000000000000000..e24572375775622c9e00f11f200bafb4
 +         .pLayer = p->layer,
 +    };
 +
-+    p->kvo = [[[MPVDrawableKVO alloc] initWithLayer:p->layer] retain];
++    p->kvo = [[MPVDrawableKVO alloc] initWithLayer:p->layer];
 +    p->kvo.ctx = ctx;
 +
 +    struct ra_vk_ctx_params params = {0};
