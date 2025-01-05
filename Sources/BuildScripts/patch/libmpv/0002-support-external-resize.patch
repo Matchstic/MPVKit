@@ -1,0 +1,32 @@
+diff --git forkSrcPrefix/libmpv/client.h forkDstPrefix/libmpv/client.h
+index 8eb5e05..66dcf30 100644
+--- forkSrcPrefix/libmpv/client.h
++++ forkDstPrefix/libmpv/client.h
+@@ -601,6 +601,11 @@ MPV_EXPORT mpv_handle *mpv_create_weak_client(mpv_handle *ctx, const char *name)
+  */
+ MPV_EXPORT int mpv_load_config_file(mpv_handle *ctx, const char *filename);
+ 
++/**
++ Trigger an external resize event
++ */
++MPV_EXPORT void mpv_external_resize(mpv_handle *ctx);
++
+ /**
+  * Return the internal time in nanoseconds. This has an arbitrary start offset,
+  * but will never wrap or go backwards.
+diff --git forkSrcPrefix/player/client.c forkDstPrefix/player/client.c
+index 42b311e..72702bf 100644
+--- forkSrcPrefix/player/client.c
++++ forkDstPrefix/player/client.c
+@@ -2141,6 +2141,11 @@ int64_t mpv_get_time_us(mpv_handle *ctx)
+ 
+ #include "video/out/libmpv.h"
+ 
++void mpv_external_resize(mpv_handle *ctx)
++{
++    vo_control(ctx->mpctx->video_out, VOCTRL_EXTERNAL_RESIZE, NULL);
++}
++
+ static void do_kill(void *ptr)
+ {
+     struct MPContext *mpctx = ptr;
