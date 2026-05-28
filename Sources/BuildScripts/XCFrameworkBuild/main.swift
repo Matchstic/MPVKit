@@ -419,7 +419,7 @@ private class BuildMPV: BaseBuild {
             array.append("-Dgl-cocoa=enabled")
             array.append("-Dvideotoolbox-gl=enabled")
             array.append("-Dvideotoolbox-pl=enabled")
-            array.append("-Dlua=luajit")  // macos show video stats need enable 
+            array.append("-Dlua=disabled")  // macos show video stats need enable 
         } else {
             array.append("-Dvideotoolbox-gl=disabled")
             array.append("-Dvideotoolbox-pl=enabled")
