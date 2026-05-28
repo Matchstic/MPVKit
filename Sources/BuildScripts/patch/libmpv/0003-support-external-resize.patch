@@ -1,7 +1,7 @@
-diff --git forkSrcPrefix/libmpv/client.h forkDstPrefix/libmpv/client.h
-index 8eb5e05..66dcf30 100644
---- forkSrcPrefix/libmpv/client.h
-+++ forkDstPrefix/libmpv/client.h
+diff --git a/include/mpv/client.h b/include/mpv/client.h
+index 85cff63bd5..742729ed2a 100644
+--- a/include/mpv/client.h
++++ b/include/mpv/client.h
 @@ -601,6 +601,11 @@ MPV_EXPORT mpv_handle *mpv_create_weak_client(mpv_handle *ctx, const char *name)
   */
  MPV_EXPORT int mpv_load_config_file(mpv_handle *ctx, const char *filename);
@@ -14,11 +14,11 @@ index 8eb5e05..66dcf30 100644
  /**
   * Return the internal time in nanoseconds. This has an arbitrary start offset,
   * but will never wrap or go backwards.
-diff --git forkSrcPrefix/player/client.c forkDstPrefix/player/client.c
-index 42b311e..72702bf 100644
---- forkSrcPrefix/player/client.c
-+++ forkDstPrefix/player/client.c
-@@ -2141,6 +2141,11 @@ int64_t mpv_get_time_us(mpv_handle *ctx)
+diff --git a/player/client.c b/player/client.c
+index e23b98b00f..c5852302fb 100644
+--- a/player/client.c
++++ b/player/client.c
+@@ -2140,6 +2140,11 @@ int64_t mpv_get_time_us(mpv_handle *ctx)
  
  #include "video/out/libmpv.h"
  
