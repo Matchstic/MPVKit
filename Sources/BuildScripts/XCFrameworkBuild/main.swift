@@ -48,49 +48,49 @@ enum Library: String, CaseIterable {
     var version: String {
         switch self {
         case .libmpv:
-            return "v0.39.0"
+            return "v0.41.0"
         case .FFmpeg:
-            return "n7.1"
+            return "n8.1.1"
         case .openssl:
-            return "3.2.0"
+            return "3.3.5"
         case .gnutls:
-            return "3.8.3"
+            return "3.8.11"
         case .nettle:
-            return "3.8.3"
+            return "3.8.11"
         case .gmp:
-            return "3.8.3"
+            return "3.8.11"
         case .libass:
-            return "0.17.3"
+            return "0.17.4"
         case .libunibreak:
-            return "0.17.3"
+            return "0.17.4"
         case .libfreetype:
-            return "0.17.3"
+            return "0.17.4"
         case .libfribidi:
-            return "0.17.3"
+            return "0.17.4"
         case .libharfbuzz:
-            return "0.17.3"
+            return "0.17.4"
         case .libsmbclient:
-            return "4.15.13"
+            return "4.15.13-2512"
         case .libdav1d:    // AV1 decoding
-            return "1.4.3"
+            return "1.5.2-xcode"
         case .lcms2:
-            return "7.349.0"
+            return "2.17.0"
         case .libplacebo:
-            return "7.349.0"
+            return "7.360.1"
         case .libdovi:
-            return "3.3.0"
+            return "3.3.2"
         case .vulkan:
-            return "1.2.11"
+            return "1.4.1"
         case .libshaderc:  // compiling GLSL (OpenGL Shading Language) shaders into SPIR-V (Standard Portable Intermediate Representation - Vulkan) code
-            return "2024.2.0"
+            return "2025.5.0"
         case .libuchardet:
-            return "0.0.8"
+            return "0.0.8-xcode"
         case .libbluray:
-            return "1.3.4"
+            return "1.4.0"
         case .libluajit:
-            return "2.1.0"
+            return "2.1.0-xcode"
         case .libuavs3d:
-            return "1.2.1"
+            return "1.2.1-xcode"
         }
     }
 
@@ -121,7 +121,7 @@ enum Library: String, CaseIterable {
         case .libsmbclient:
             return "https://github.com/mpvkit/libsmbclient-build/releases/download/\(self.version)/libsmbclient-all.zip"
         case .lcms2:
-            return "https://github.com/mpvkit/libplacebo-build/releases/download/\(self.version)/lcms2-all.zip"
+            return "https://github.com/mpvkit/lcms2-build/releases/download/\(self.version)/lcms2-all.zip"
         case .libplacebo:
             return "https://github.com/mpvkit/libplacebo-build/releases/download/\(self.version)/libplacebo-all.zip"
         case .libdav1d:
@@ -286,8 +286,8 @@ enum Library: String, CaseIterable {
             return  [
                 .target(
                     name: "lcms2",
-                    url: "https://github.com/mpvkit/libplacebo-build/releases/download/\(self.version)/lcms2.xcframework.zip",
-                    checksum: "https://github.com/mpvkit/libplacebo-build/releases/download/\(self.version)/lcms2.xcframework.checksum.txt"
+                    url: "https://github.com/mpvkit/lcms2-build/releases/download/\(self.version)/lcms2.xcframework.zip",
+                    checksum: "https://github.com/mpvkit/lcms2-build/releases/download/\(self.version)/lcms2.xcframework.checksum.txt"
                 ),
             ]
         case .libplacebo:
@@ -418,9 +418,11 @@ private class BuildMPV: BaseBuild {
             array.append("-Davfoundation=enabled")
             array.append("-Dgl-cocoa=enabled")
             array.append("-Dvideotoolbox-gl=enabled")
-            array.append("-Dlua=disabled")  // macos show video stats need enable (=luajit)
+            array.append("-Dvideotoolbox-pl=enabled")
+            array.append("-Dlua=luajit")  // macos show video stats need enable 
         } else {
             array.append("-Dvideotoolbox-gl=disabled")
+            array.append("-Dvideotoolbox-pl=enabled")
             array.append("-Dswift-build=disabled")
             array.append("-Daudiounit=enabled")
             array.append("-Davfoundation=disabled")
@@ -634,7 +636,7 @@ private class BuildFFMPEG: BaseBuild {
         if framework == "Libavcodec" {
             return ["xvmc", "vdpau", "qsv", "dxva2", "d3d11va", "d3d12va"]
         } else if framework == "Libavutil" {
-            return ["hwcontext_vulkan", "hwcontext_vdpau", "hwcontext_vaapi", "hwcontext_qsv", "hwcontext_opencl", "hwcontext_dxva2", "hwcontext_d3d11va", "hwcontext_d3d12va", "hwcontext_cuda"]
+            return ["hwcontext_vulkan", "hwcontext_vdpau", "hwcontext_vaapi", "hwcontext_qsv", "hwcontext_opencl", "hwcontext_dxva2", "hwcontext_d3d11va", "hwcontext_d3d12va", "hwcontext_cuda", "hwcontext_amf"]
         } else {
             return super.frameworkExcludeHeaders(framework)
         }
@@ -652,7 +654,7 @@ private class BuildFFMPEG: BaseBuild {
         "--disable-doc", "--disable-htmlpages", "--disable-manpages", "--disable-podpages", "--disable-txtpages",
         // Component options:
         "--enable-avcodec", "--enable-avformat", "--enable-avutil", "--enable-network", "--enable-swresample", "--enable-swscale",
-        "--disable-devices", "--disable-outdevs", "--disable-indevs", "--disable-postproc",
+        "--disable-devices", "--disable-outdevs", "--disable-indevs",
         // ,"--disable-pthreads"
         // ,"--disable-w32threads"
         // ,"--disable-os2threads"
@@ -664,7 +666,7 @@ private class BuildFFMPEG: BaseBuild {
         // ,"--disable-rdft"
         // ,"--disable-fft"
         // Hardware accelerators:
-        "--disable-d3d11va", "--disable-d3d12va", "--disable-dxva2", "--disable-vaapi", "--disable-vdpau",
+        "--disable-amf", "--disable-d3d11va", "--disable-d3d12va", "--disable-dxva2", "--disable-vaapi", "--disable-vdpau",
         // Individual component options:
         // ,"--disable-everything"
         // ./configure --list-muxers

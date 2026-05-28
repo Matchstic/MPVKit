@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import CoreMedia
 import Libmpv
 
 // warning: metal API validation has been disabled to ignore crash when playing HDR videos.
@@ -13,12 +14,7 @@ final class MPVMetalViewController: NSViewController {
     lazy var queue = DispatchQueue(label: "mpv", qos: .userInitiated)
     
     var playUrl: URL?
-    var hdrAvailable : Bool {
-        let maxEDRRange = NSScreen.main?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1.0
-        let sigPeak = getDouble(MPVProperty.videoParamsSigPeak)
-        // display screen support HDR and current playing HDR video
-        return maxEDRRange > 1.0 && sigPeak > 1.0
-    }
+    var hdrAvailable : Bool = false
     var hdrEnabled = false {
         didSet {
             // FIXME: target-colorspace-hint does not support being changed at runtime.
@@ -104,12 +100,13 @@ final class MPVMetalViewController: NSViewController {
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
         checkError(mpv_set_option_string(mpv, "vo", "gpu-next"))
         checkError(mpv_set_option_string(mpv, "gpu-api", "vulkan"))
+        checkError(mpv_set_option_string(mpv, "gpu-context", "moltenvk"))
         checkError(mpv_set_option_string(mpv, "hwdec", "videotoolbox"))
         checkError(mpv_set_option_string(mpv, "ytdl", "no"))
-//        checkError(mpv_set_option_string(mpv, "target-colorspace-hint", "yes")) // HDR passthrough
-//        checkError(mpv_set_option_string(mpv, "tone-mapping-visualize", "yes"))  // only for debugging purposes
-//        checkError(mpv_set_option_string(mpv, "profile", "fast"))   // can fix frame drop in poor device when play 4k
-
+        //        checkError(mpv_set_option_string(mpv, "target-colorspace-hint", "yes")) // HDR passthrough
+        //        checkError(mpv_set_option_string(mpv, "tone-mapping-visualize", "yes"))  // only for debugging purposes
+        //        checkError(mpv_set_option_string(mpv, "profile", "fast"))   // can fix frame drop in poor device when play 4k
+        
         
         checkError(mpv_initialize(mpv))
         
@@ -117,11 +114,11 @@ final class MPVMetalViewController: NSViewController {
         mpv_observe_property(mpv, 0, MPVProperty.videoParamsColormatrix, MPV_FORMAT_STRING)
         mpv_observe_property(mpv, 0, MPVProperty.pausedForCache, MPV_FORMAT_FLAG)
         mpv_set_wakeup_callback(self.mpv, { (ctx) in
-            let client = unsafeBitCast(ctx, to: MPVMetalViewController.self)
-            client.readEvents()
-        }, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
+            guard let client = ctx else { return }
+            let viewController = Unmanaged<MPVMetalViewController>.fromOpaque(client).takeUnretainedValue()
+            viewController.readEvents()
+        }, Unmanaged.passRetained(self).toOpaque())
     }
-    
     
     func loadFile(
         _ url: URL,
@@ -150,6 +147,10 @@ final class MPVMetalViewController: NSViewController {
     
     func pause() {
         setFlag("pause", true)
+    }
+    
+    func seek(relative time: TimeInterval) {
+        command("seek", args: [String(time), "relative"])
     }
     
     private func getDouble(_ name: String) -> Double {
@@ -198,7 +199,7 @@ final class MPVMetalViewController: NSViewController {
         }
     }
     
-
+    
     
     private func makeCArgs(_ command: String, _ args: [String?]) -> [String?] {
         if !args.isEmpty, args.last == nil {
@@ -213,7 +214,9 @@ final class MPVMetalViewController: NSViewController {
     }
     
     func readEvents() {
-        queue.async { [self] in
+        queue.async { [weak self] in
+            guard let self else { return }
+
             while self.mpv != nil {
                 let event = mpv_wait_event(self.mpv, 0)
                 if event?.pointee.event_id == MPV_EVENT_NONE {
@@ -229,6 +232,9 @@ final class MPVMetalViewController: NSViewController {
                         case MPVProperty.videoParamsSigPeak:
                             if let sigPeak = UnsafePointer<Double>(OpaquePointer(property.data))?.pointee {
                                 DispatchQueue.main.async {
+                                    let maxEDRRange = NSScreen.main?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1.0
+                                    // display screen support HDR and current playing HDR video
+                                    self.hdrAvailable = maxEDRRange > 1.0 && sigPeak > 1.0
                                     self.playDelegate?.propertyChange(mpv: self.mpv, propertyName: propertyName, data: sigPeak)
                                 }
                             }
@@ -257,6 +263,24 @@ final class MPVMetalViewController: NSViewController {
         }
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        
+        if mpv != nil {
+            mpv_set_wakeup_callback(mpv, nil, nil)
+            
+            // Wait for any pending queue operations to complete
+            queue.sync {
+                if self.mpv != nil {
+                    mpv_terminate_destroy(self.mpv)
+                    self.mpv = nil
+                }
+            }
+            
+            // Release the retained self from wakeup callback
+            Unmanaged.passUnretained(self).release()
+        }
+    }
     
     private func checkError(_ status: CInt) {
         if status < 0 {
