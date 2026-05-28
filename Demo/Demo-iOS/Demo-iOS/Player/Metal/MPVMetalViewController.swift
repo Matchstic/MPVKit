@@ -12,12 +12,7 @@ final class MPVMetalViewController: UIViewController {
     lazy var queue = DispatchQueue(label: "mpv", qos: .userInitiated)
     
     var playUrl: URL?
-    var hdrAvailable : Bool {
-        let maxEDRRange = view.window?.screen.potentialEDRHeadroom ?? 1.0
-        let sigPeak = getDouble(MPVProperty.videoParamsSigPeak)
-        // display screen support HDR and current playing HDR video
-        return maxEDRRange > 1.0 && sigPeak > 1.0
-    }
+    var hdrAvailable : Bool = false
     var hdrEnabled = false {
         didSet {
             // FIXME: target-colorspace-hint does not support being changed at runtime.
@@ -77,9 +72,10 @@ final class MPVMetalViewController: UIViewController {
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
         checkError(mpv_set_option_string(mpv, "vo", "gpu-next"))
         checkError(mpv_set_option_string(mpv, "gpu-api", "vulkan"))
+        checkError(mpv_set_option_string(mpv, "gpu-context", "moltenvk"))
         checkError(mpv_set_option_string(mpv, "hwdec", "videotoolbox"))
         checkError(mpv_set_option_string(mpv, "video-rotate", "no"))
-        checkError(mpv_set_option_string(mpv, "ytdl", "no"))
+
 //        checkError(mpv_set_option_string(mpv, "target-colorspace-hint", "yes")) // HDR passthrough
 //        checkError(mpv_set_option_string(mpv, "tone-mapping-visualize", "yes"))  // only for debugging purposes
 //        checkError(mpv_set_option_string(mpv, "profile", "fast"))   // can fix frame drop in poor device when play 4k
@@ -93,6 +89,24 @@ final class MPVMetalViewController: UIViewController {
             let client = unsafeBitCast(ctx, to: MPVMetalViewController.self)
             client.readEvents()
         }, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
+
+        setupNotification()
+    }
+    
+    public func setupNotification() {
+        NotificationCenter.default.addObserver(self, selector: #selector(enterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(enterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+    
+    @objc public func enterBackground() {
+        // fix black screen issue when app enter foreground again
+        pause()
+        checkError(mpv_set_option_string(mpv, "vid", "no"))
+    }
+    
+    @objc public func enterForeground() {
+        checkError(mpv_set_option_string(mpv, "vid", "auto"))
+        play()
     }
     
     
@@ -204,6 +218,15 @@ final class MPVMetalViewController: UIViewController {
                     if let property = UnsafePointer<mpv_event_property>(dataOpaquePtr)?.pointee {
                         let propertyName = String(cString: property.name)
                         switch propertyName {
+                        case MPVProperty.videoParamsSigPeak:
+                            if let sigPeak = UnsafePointer<Double>(OpaquePointer(property.data))?.pointee {
+                                DispatchQueue.main.async {
+                                    let maxEDRRange = self.view.window?.screen.potentialEDRHeadroom ?? 1.0
+                                    // display screen support HDR and current playing HDR video
+                                    self.hdrAvailable = maxEDRRange > 1.0 && sigPeak > 1.0
+                                    self.playDelegate?.propertyChange(mpv: self.mpv, propertyName: propertyName, data: sigPeak)
+                                }
+                            }
                         case MPVProperty.pausedForCache:
                             let buffering = UnsafePointer<Bool>(OpaquePointer(property.data))?.pointee ?? true
                             DispatchQueue.main.async {

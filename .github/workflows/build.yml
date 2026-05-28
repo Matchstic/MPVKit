@@ -89,7 +89,6 @@ jobs:
           rm -rf ./dist/libmpv*
           rm -rf ./dist/release/libmpv
           rm -rf ./dist/release/xcframework
-
       
       - name: Build LGPL version
         run: |
