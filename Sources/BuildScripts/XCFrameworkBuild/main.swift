@@ -151,17 +151,7 @@ enum Library: String, CaseIterable {
     var targets: [PackageTarget] {
         switch self {
         case .libluajit:
-            // Not merged: macOS-only, and mpv loads it for scripting rather
-            // than linking it into the shared build.
-            return [
-                .target(
-                    name: "Libluajit",
-                    url:
-                        "https://github.com/mpvkit/libluajit-build/releases/download/\(self.version)/Libluajit.xcframework.zip",
-                    checksum:
-                        "https://github.com/mpvkit/libluajit-build/releases/download/\(self.version)/Libluajit.xcframework.checksum.txt"
-                )
-            ]
+            return []
         case .libmpv, .FFmpeg, .openssl, .libass, .libunibreak, .libfreetype, .libfribidi,
             .libharfbuzz, .libplacebo, .libdav1d, .libuchardet, .libdovi, .lcms2, .libshaderc,
             .vulkan, .libuavs3d:
@@ -222,7 +212,7 @@ private class BuildMPV: BaseBuild {
             array.append("-Dvideotoolbox-pl=enabled")
             array.append("-Dmacos-touchbar=disabled")
             array.append("-Dmacos-media-player=disabled")
-            array.append("-Dlua=luajit")
+            array.append("-Dlua=disabled")
         } else {
             array.append("-Dvideotoolbox-gl=disabled")
             array.append("-Dvideotoolbox-pl=enabled")

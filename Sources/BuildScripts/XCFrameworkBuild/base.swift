@@ -1043,7 +1043,7 @@ enum PlatformType: String, CaseIterable {
         case .tvos, .tvsimulator:
             return "14.0"
         case .macos:
-            return "11.0"
+            return "14.0"
         case .maccatalyst:
             // return "14.0"
             return ""

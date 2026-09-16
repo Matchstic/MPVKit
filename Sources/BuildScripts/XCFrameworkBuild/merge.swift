@@ -31,7 +31,7 @@ enum MergeMPVKit {
     /// out-of-tree scripts never covered it and the shipped xcframework has no
     /// macos slice, so adding one here would be untested. A macOS consumer of
     /// this package is unsupported today, exactly as before this port.
-    static let mergedPlatforms: [PlatformType] = [.ios, .isimulator, .tvos, .tvsimulator, .maccatalyst]
+    static let mergedPlatforms: [PlatformType] = [.ios, .isimulator, .tvos, .tvsimulator, .maccatalyst, .macos]
 
     /// FFmpeg + mpv: force-loaded, because consumers call their public API
     /// directly and normal archive semantics would drop anything mpv itself did
@@ -60,7 +60,12 @@ enum MergeMPVKit {
     /// fine; the reverse would warn. Change this one constant to move the
     /// framework's floor -- it feeds both the link target triple and
     /// Info.plist's MinimumOSVersion, which must agree.
-    static let deploymentTarget = "26.0"
+    
+    #if os(macOS)
+    static let deploymentTarget = "14.0"
+    #else
+    static let deploymentTarget = "18.0"
+    #endif
 
     /// tvOS is arm64-only, no arm64e. The per-arch crate-disambiguator hazard
     /// that made this necessary is gone now that consumers link no static
@@ -195,6 +200,8 @@ enum MergeMPVKit {
         switch platform {
         case .maccatalyst:
             frameworks.append(contentsOf: ["UIKit", "IOKit"])
+        case .macos:
+            frameworks.append(contentsOf: ["IOKit"])
         default:
             frameworks.append(contentsOf: ["UIKit", "OpenGLES"])
         }
@@ -237,6 +244,8 @@ enum MergeMPVKit {
             return "\(cpu)-apple-tvos\(deploymentTarget)-simulator"
         case .maccatalyst:
             return "\(cpu)-apple-ios\(deploymentTarget)-macabi"
+        case .macos:
+            return "\(cpu)-apple-macos\(deploymentTarget)"
         default:
             return platform.deploymentTarget(arch)
         }
@@ -251,9 +260,27 @@ enum MergeMPVKit {
         try? FileManager.default.removeItem(at: framework)
         let headers = framework + "Headers"
         let modules = framework + "Modules"
+        
         try FileManager.default.createDirectory(at: headers, withIntermediateDirectories: true, attributes: nil)
         try FileManager.default.createDirectory(at: modules, withIntermediateDirectories: true, attributes: nil)
-        try FileManager.default.copyItem(at: binary, to: framework + "MPVKit")
+        
+        if platform == .macos {
+            let versionsA = framework + ["Versions", "A"]
+            try FileManager.default.createDirectory(at: versionsA, withIntermediateDirectories: true, attributes: nil)
+            
+            // Link Versions/Current to Versions/A
+            let versionsCurrent = framework + ["Versions", "Current"]
+            try FileManager.default.createSymbolicLink(atPath: versionsCurrent.path, withDestinationPath: "A")
+            
+            // Write binary to Versions/A/MPVKit
+            try FileManager.default.copyItem(at: binary, to: versionsA + "MPVKit")
+            
+            // Link binary from framework root
+            let binaryRoot = framework + "MPVKit"
+            try FileManager.default.createSymbolicLink(atPath: binaryRoot.path, withDestinationPath: "Versions/A/MPVKit")
+        } else {
+            try FileManager.default.copyItem(at: binary, to: framework + "MPVKit")
+        }
 
         // Headers in FFmpeg's natural layout (Headers/libavutil/..., Headers/mpv/...),
         // NOT flat. FFmpeg headers cross-include as "libavutil/x.h", and in the old
@@ -331,9 +358,26 @@ enum MergeMPVKit {
         </dict></plist>
 
         """
-        let infoPlistURL = framework + "Info.plist"
-        try infoPlist.write(to: infoPlistURL, atomically: true, encoding: .utf8)
-        try Utility.launch(path: "/usr/bin/plutil", arguments: ["-lint", infoPlistURL.path])
+        
+        if platform == .macos {
+            let resources = framework + ["Versions", "A", "Resources"]
+            try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true, attributes: nil)
+            
+            // Link Resources to Versions/A/Resources
+            let resourcesRoot = framework + ["Resources"]
+            try FileManager.default.createSymbolicLink(atPath: resourcesRoot.path, withDestinationPath: "Versions/A/Resources")
+            
+            // Write plist to Versions/A/Resources/Info.plist
+            let infoPlistURL = resources + "Info.plist"
+            try infoPlist.write(to: infoPlistURL, atomically: true, encoding: .utf8)
+            
+            try Utility.launch(path: "/usr/bin/plutil", arguments: ["-lint", infoPlistURL.path])
+        } else {
+            let infoPlistURL = framework + "Info.plist"
+            try infoPlist.write(to: infoPlistURL, atomically: true, encoding: .utf8)
+            
+            try Utility.launch(path: "/usr/bin/plutil", arguments: ["-lint", infoPlistURL.path])
+        }
 
         let headerCount = Utility.listAllFiles(in: headers).filter { $0.pathExtension == "h" }.count
         print("  packaged \(platform.rawValue): \(headerCount) headers")

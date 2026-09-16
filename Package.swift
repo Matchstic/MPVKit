@@ -129,7 +129,7 @@ let package = Package(
         // Consumers `import MPVKit` instead of Libavutil/Libavcodec/Libavformat/Libmpv.
         .binaryTarget(
             name: "MPVKit_dynamic",
-            path: "Frameworks/MPVKit.xcframework"
+            path: "dist/release/xcframework/MPVKit.xcframework"
         ),
 
         .binaryTarget(
