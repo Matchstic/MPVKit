@@ -277,7 +277,7 @@ enum MergeMPVKit {
             
             // Link binary from framework root
             let binaryRoot = framework + "MPVKit"
-            try FileManager.default.createSymbolicLink(atPath: binaryRoot.path, withDestinationPath: "Versions/A/MPVKit")
+            try FileManager.default.createSymbolicLink(atPath: binaryRoot.path, withDestinationPath: "Versions/Current/MPVKit")
         } else {
             try FileManager.default.copyItem(at: binary, to: framework + "MPVKit")
         }
@@ -363,9 +363,9 @@ enum MergeMPVKit {
             let resources = framework + ["Versions", "A", "Resources"]
             try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true, attributes: nil)
             
-            // Link Resources to Versions/A/Resources
+            // Link Resources to Versions/Current/Resources
             let resourcesRoot = framework + ["Resources"]
-            try FileManager.default.createSymbolicLink(atPath: resourcesRoot.path, withDestinationPath: "Versions/A/Resources")
+            try FileManager.default.createSymbolicLink(atPath: resourcesRoot.path, withDestinationPath: "Versions/Current/Resources")
             
             // Write plist to Versions/A/Resources/Info.plist
             let infoPlistURL = resources + "Info.plist"
